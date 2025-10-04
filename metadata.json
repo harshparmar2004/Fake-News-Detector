@@ -1,0 +1,5 @@
+{
+  "name": "Fake News Detector",
+  "description": "An AI-powered application that analyzes news headlines to classify them as likely real or fake, providing a confidence score and a brief explanation for its reasoning.",
+  "requestFramePermissions": []
+}
