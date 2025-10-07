@@ -1,56 +1,46 @@
+ import { GoogleGenerativeAI } from "@google/generative-ai";
+import { AnalysisResult } from "../types";
 
-import { GoogleGenAI, Type } from "@google/genai";
-import { AnalysisResult } from '../types';
+// Initialize Gemini client with API key
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export async function analyzeHeadline(headline: string): Promise<AnalysisResult> {
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-const analysisSchema = {
-  type: Type.OBJECT,
-  properties: {
-    classification: {
-      type: Type.STRING,
-      description: "Classify the headline as either 'Real' or 'Fake'.",
-      enum: ['Real', 'Fake'],
-    },
-    confidence: {
-      type: Type.NUMBER,
-      description: "A confidence score from 0 to 100 on the classification.",
-    },
-    explanation: {
-      type: Type.STRING,
-      description: "A brief, one-sentence explanation for the classification, analyzing the headline's language, tone, and potential biases.",
-    },
-  },
-  required: ['classification', 'confidence', 'explanation'],
-};
+  const prompt = `
+  You are a fact-checking AI.
+  Analyze the following news headline and decide whether it's likely real or fake.
+  Respond in this JSON format:
+  {
+    "verdict": "Real" or "Fake",
+    "confidence": "High" | "Medium" | "Low",
+    "explanation": "A short, clear reason for your conclusion."
+  }
 
-export const analyzeHeadline = async (headline: string): Promise<AnalysisResult> => {
+  Headline: "${headline}"
+  `;
+
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `Analyze the following news headline and determine if it is likely real or fake news. Consider factors like sensationalism, emotional language, and verifiability. Headline: "${headline}"`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: analysisSchema,
-      },
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = await response.text();
 
-    const jsonText = response.text.trim();
-    const parsedResult = JSON.parse(jsonText);
-    
-    // Basic validation to ensure the result matches the expected structure
-    if (
-      (parsedResult.classification === 'Real' || parsedResult.classification === 'Fake') &&
-      typeof parsedResult.confidence === 'number' &&
-      typeof parsedResult.explanation === 'string'
-    ) {
-      return parsedResult as AnalysisResult;
-    } else {
-      throw new Error("Invalid response structure from AI model.");
-    }
+    // Try to parse JSON output (since we asked in JSON format)
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {
+      verdict: "Unknown",
+      confidence: "Low",
+      explanation: "Could not parse AI output."
+    };
+
+    return parsed as AnalysisResult;
 
   } catch (error) {
-    console.error("Error calling Gemini API:", error);
-    throw new Error("Could not get a valid analysis from the AI model.");
+    console.error("Gemini API error:", error);
+    return {
+      verdict: "Error",
+      confidence: "Low",
+      explanation: "Failed to analyze headline due to API error."
+    };
   }
-};
+}

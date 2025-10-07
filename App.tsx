@@ -2,7 +2,8 @@
 import React, { useState, useCallback } from 'react';
 import { AnalysisResult } from './types';
 import { analyzeHeadline } from './services/geminiService';
-import Header from './components/Header';
+
+ import Header from './components/Header';
 import HeadlineInput from './components/HeadlineInput';
 import ResultDisplay from './components/ResultDisplay';
 import InitialState from './components/InitialState';
